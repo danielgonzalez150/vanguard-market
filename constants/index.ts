@@ -1,0 +1,1 @@
+export const AES_SECRET_KEY = process.env.EXPO_PUBLIC_AES_SECRET_KEY;
