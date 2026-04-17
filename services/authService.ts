@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { encryptPassword } from '../utils/encryption';
-import api from './api';
+import api from './api'; // SIN llaves, SIN asterisco
 
 export const login = async (email: string, passwordPlano: string) => {
   try {

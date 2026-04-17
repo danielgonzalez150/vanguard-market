@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store'; // <--- ESTO ES LO QUE TE FALTA
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { login } from '../../services/authService';
@@ -10,7 +11,6 @@ export default function LoginScreen() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    // Validaciones básicas
     if (!email || !password) {
       Alert.alert("Error", "Por favor completa todos los campos");
       return;
@@ -18,20 +18,33 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const data = await login(email, password);
+      // 1. Llamamos al servicio
+      const response = await login(email, password); 
       
-      // Si el login es exitoso, data contendrá el token (gracias a tu authService)
-      console.log("Login exitoso, token recibido");
-      
-      // Navegar a la pantalla principal
-      router.replace('../(main)/home'); 
+      // 2. Extraemos el objeto 'data' interno (donde viene el token y el role)
+      const apiData = response.data; 
+
+      if (apiData && apiData.token) {
+        // 3. Guardamos el token para el interceptor de Axios
+        await SecureStore.setItemAsync('userToken', apiData.token);
+        
+        // 4. Guardamos todo el objeto (email, role, userId) como string
+        await SecureStore.setItemAsync('userData', JSON.stringify(apiData));
+
+        console.log("✅ LOGIN EXITOSO. Rol:", apiData.role);
+
+        // 5. Saltamos al Home
+        router.replace('/(main)/home'); 
+      } else {
+        Alert.alert("Error", "No se encontró el token en la respuesta");
+      }
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || "Credenciales incorrectas o error de servidor";
+      console.error("Error en login:", error);
+      const errorMsg = error.response?.data?.message || "Credenciales incorrectas";
       Alert.alert("Error de acceso", errorMsg);
-      console.error(error);
     } finally {
       setLoading(false);
-    }
+    } 
   };
 
   return (
@@ -87,7 +100,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              onPress={() => router.push('/(auth)/register' as any)} // Ruta completa + as any para TS
+              onPress={() => router.push('/(auth)/register' as any)}
               className="mt-6"
             >
               <Text className="text-center text-slate-500">
