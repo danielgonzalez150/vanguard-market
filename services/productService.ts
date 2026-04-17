@@ -25,7 +25,8 @@ export const createProduct = async (data: Partial<Product>) => {
   return response.data;
 };
 
-export const updateProduct = async (id: number, data: Partial<Product>) => {
-  const response = await api.put(`/products/${id}`, data);
+export const updateProduct = async (id: number, productData: any) => {
+  // Aquí usamos el ID en la URL como indica tu documentación
+  const response = await api.put(`/products/${id}`, productData);
   return response.data;
 };

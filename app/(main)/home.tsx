@@ -1,8 +1,10 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, { useCallback, useState } from 'react'; // Eliminamos useEffect, añadimos useCallback
+import React, { useCallback, useState } from 'react';
+// 1. AÑADIMOS Image AQUÍ
 import { ActivityIndicator, Alert, FlatList, Image, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { getProducts } from '../../services/productService';
+// 2. ELIMINAMOS la importación errónea de react-native-reanimated
 
 interface Product {
   id: number;
@@ -11,6 +13,7 @@ interface Product {
   price: number;
   stock: number;
   imageUrl: string;
+  sellerId?: number; // 3. AÑADIMOS sellerId para que TypeScript no arroje error
 }
 
 export default function HomeScreen() {
@@ -20,20 +23,15 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
-  // Función principal para cargar datos
   const loadData = async () => {
     try {
-      // Si no estamos "refrescando" manualmente, mostramos el loader central
       if (!refreshing) setLoading(true);
       
-      // 1. Cargar datos del usuario
       const userData = await SecureStore.getItemAsync('userData');
       if (userData) setUser(JSON.parse(userData));
 
-      // 2. Cargar productos desde la API
       const response = await getProducts();
       if (response && response.data) {
-        // Invertimos para ver lo más nuevo arriba
         setProducts(response.data.reverse()); 
       }
     } catch (error) {
@@ -44,11 +42,6 @@ export default function HomeScreen() {
     }
   };
 
-  /**
-   * EL TRUCO MÁGICO:
-   * useFocusEffect se dispara cada vez que la pantalla entra en foco.
-   * Al estar envuelto en useCallback, evita ejecuciones infinitas.
-   */
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -124,29 +117,57 @@ export default function HomeScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         keyExtractor={(item) => item.id.toString()}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh}  />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        renderItem={({ item }) => (
-          <View className="bg-white p-4 rounded-3xl mb-4 shadow-sm border border-slate-100 flex-row items-center">
-            <Image 
-              source={{ 
-                uri: item.imageUrl && item.imageUrl.startsWith('http') 
-                  ? item.imageUrl 
-                  : 'https://via.placeholder.com/150' 
-              }} 
-              className="w-16 h-16 rounded-2xl bg-slate-200"
-              resizeMode="cover"
-            />
-            <View className="ml-4 flex-1">
-              <Text className="text-base font-bold text-slate-800" numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text className="text-blue-600 font-black">${item.price.toLocaleString()}</Text>
-            </View>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const canEdit = user?.role === 'ADMIN' || user?.id === item.sellerId;
+
+          return (
+            <TouchableOpacity 
+              onPress={() => canEdit && router.push({
+                pathname: '/(main)/product-form',
+                params: { id: item.id } 
+              })}
+              activeOpacity={canEdit ? 0.7 : 1}
+              className={`bg-white p-4 rounded-3xl mb-4 shadow-sm border flex-row items-center ${
+                canEdit ? 'border-blue-100' : 'border-slate-100'
+              }`}
+            >
+              <Image 
+                source={{ 
+                  uri: item.imageUrl && item.imageUrl.startsWith('http') 
+                    ? item.imageUrl 
+                    : 'https://via.placeholder.com/150' 
+                }} 
+                className="w-20 h-20 rounded-2xl bg-slate-100"
+                resizeMode="cover"
+              />
+
+              <View className="ml-4 flex-1 justify-center">
+                <Text className="text-lg font-bold text-slate-800" numberOfLines={1}>
+                  {item.name || "Producto sin nombre"}
+                </Text>
+                <Text className="text-blue-600 font-black text-base">
+                  ${item.price ? item.price.toLocaleString() : '0'}
+                </Text>
+                
+                {canEdit && (
+                  <Text className="text-[10px] text-blue-500 font-bold mt-1 uppercase tracking-tighter">
+                    PROPIEDAD DE: {user?.role === 'ADMIN' && item.sellerId !== user.id ? 'OTRO SELLER' : 'TI'}
+                  </Text>
+                )}
+              </View>
+
+              {canEdit && (
+                <View className="bg-blue-600 w-10 h-10 rounded-2xl items-center justify-center shadow-sm ml-2">
+                   <Text className="text-white text-lg">✎</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        }}
         ListEmptyComponent={
-          <Text className="text-center text-slate-400 mt-10">No hay productos.</Text>
+          <Text className="text-center text-slate-400 mt-10">No hay productos disponibles.</Text>
         }
       />
 
