@@ -60,3 +60,23 @@ export const register = async (
     throw error;
   }
 };
+
+export const updatePersonalInfo = async (
+  firstName: string,
+  lastName: string,
+  phoneNumber: string,
+  dateOfBirth: string
+) => {
+  try {
+    // El interceptor de Axios se encarga del Bearer Token automáticamente
+    const response = await api.put('/users/me/personal-info', {
+      firstName,
+      lastName,
+      phoneNumber,
+      dateOfBirth
+    });
+    return response.data;
+  } catch (error: any) {
+    throw error;
+  }
+};
