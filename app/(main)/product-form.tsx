@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store'; // Importación necesaria
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { uploadImageToCloudinary } from '../../services/imageService';
@@ -8,14 +9,13 @@ import { createProduct, getProducts, updateProduct } from '../../services/produc
 export default function ProductForm() {
   const { id } = useLocalSearchParams(); 
   const router = useRouter();
-  
-  // Variable lógica para saber si estamos editando
   const isEditing = !!id;
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false); 
   const [imageUri, setImageUri] = useState<string | null>(null); 
-  
+  const [user, setUser] = useState<any>(null); // Estado para el usuario actual
+
   const [form, setForm] = useState({
     name: '',
     categoryId: '5', 
@@ -30,35 +30,42 @@ export default function ProductForm() {
   });
 
   useEffect(() => {
-    if (id) {
-      loadProductData();
-    }
+    loadInitialData();
   }, [id]);
 
-  const loadProductData = async () => {
+  const loadInitialData = async () => {
     try {
       setLoading(true);
-      const response = await getProducts();
-      // Buscamos el producto en la lista que devuelve la API
-      const product = response.data.find((p: any) => p.id.toString() === id);
       
-      if (product) {
-        setForm({
-          name: product.name || '',
-          categoryId: product.categoryId?.toString() || '5',
-          price: product.price?.toString() || '',
-          stock: product.stock?.toString() || '',
-          imageUrl: product.imageUrl || '',
-          description: product.description || '',
-          brand: product.brand || '',
-          model: product.model || '',
-          weight: product.weight?.toString() || '0',
-          color: product.color || ''
-        });
-        if (product.imageUrl) setImageUri(product.imageUrl);
+      // 1. Obtener el usuario logueado para tener su ID
+      const userData = await SecureStore.getItemAsync('userData');
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+
+      // 2. Si estamos editando, cargar los datos del producto
+      if (id) {
+        const response = await getProducts();
+        const product = response.data.find((p: any) => p.id.toString() === id);
+        
+        if (product) {
+          setForm({
+            name: product.name || '',
+            categoryId: product.categoryId?.toString() || '5',
+            price: product.price?.toString() || '',
+            stock: product.stock?.toString() || '',
+            imageUrl: product.imageUrl || '',
+            description: product.description || '',
+            brand: product.brand || '',
+            model: product.model || '',
+            weight: product.weight?.toString() || '0',
+            color: product.color || ''
+          });
+          if (product.imageUrl) setImageUri(product.imageUrl);
+        }
       }
     } catch (e) {
-      Alert.alert("Error", "No se pudo cargar la información del producto");
+      Alert.alert("Error", "No se pudo cargar la información inicial");
     } finally {
       setLoading(false);
     }
@@ -78,7 +85,6 @@ export default function ProductForm() {
   };
 
   const handleSubmit = async () => {
-    // Validación básica
     if (!form.name || !form.price || !form.brand) {
       Alert.alert("Campos faltantes", "Por favor llena al menos Nombre, Marca y Precio.");
       return;
@@ -86,16 +92,14 @@ export default function ProductForm() {
 
     setLoading(true);
     try {
-      // 1. Lógica de imagen (Cloudinary)
       let finalUrl = form.imageUrl;
-      // Solo subimos a Cloudinary si la URI es local (file://)
       if (imageUri && imageUri.startsWith('file://')) {
         setUploading(true);
         finalUrl = await uploadImageToCloudinary(imageUri);
         setUploading(false);
       }
 
-      // 2. Construir el JSON exacto para la API
+      // JSON construido con sellerId para que no pierdas el permiso de edición
       const dataToSend = {
         name: form.name,
         brand: form.brand,
@@ -106,11 +110,11 @@ export default function ProductForm() {
         color: form.color || "N/A",
         description: form.description || "",
         imageUrl: finalUrl,
-        categoryId: parseInt(form.categoryId)
+        categoryId: parseInt(form.categoryId),
+        sellerId: user?.id // 👈 ESTO ES LO QUE FALTABA
       };
 
       if (isEditing) {
-        // Usamos el id que viene de useLocalSearchParams
         await updateProduct(Number(id), dataToSend);
         Alert.alert("¡Éxito!", "Producto actualizado correctamente");
       } else {
@@ -121,7 +125,7 @@ export default function ProductForm() {
       router.back();
     } catch (error: any) {
       console.error("Error en handleSubmit:", error);
-      Alert.alert("Error", error.response?.data?.message || "No se pudo conectar con el servidor");
+      Alert.alert("Error", error.response?.data?.message || "No se pudo procesar la solicitud");
     } finally {
       setLoading(false);
       setUploading(false);
@@ -163,18 +167,21 @@ export default function ProductForm() {
         {/* INPUTS */}
         <TextInput placeholder="Nombre del Producto" className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4" value={form.name} onChangeText={(t) => setForm({...form, name: t})} />
         
-        <View className="flex-row mb-4">
-          <TextInput placeholder="Marca" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200 mr-2" value={form.brand} onChangeText={(t) => setForm({...form, brand: t})} />
+        <View className="flex-row mb-4 space-x-2">
+          <TextInput placeholder="Marca" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200" value={form.brand} onChangeText={(t) => setForm({...form, brand: t})} />
+          <View style={{ width: 8 }} />
           <TextInput placeholder="Modelo" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200" value={form.model} onChangeText={(t) => setForm({...form, model: t})} />
         </View>
 
-        <View className="flex-row mb-4">
-          <TextInput placeholder="Precio" keyboardType="numeric" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200 mr-2" value={form.price} onChangeText={(t) => setForm({...form, price: t})} />
+        <View className="flex-row mb-4 space-x-2">
+          <TextInput placeholder="Precio" keyboardType="numeric" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200" value={form.price} onChangeText={(t) => setForm({...form, price: t})} />
+          <View style={{ width: 8 }} />
           <TextInput placeholder="Stock" keyboardType="numeric" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200" value={form.stock} onChangeText={(t) => setForm({...form, stock: t})} />
         </View>
 
-        <View className="flex-row mb-4">
-          <TextInput placeholder="Peso (kg)" keyboardType="numeric" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200 mr-2" value={form.weight} onChangeText={(t) => setForm({...form, weight: t})} />
+        <View className="flex-row mb-4 space-x-2">
+          <TextInput placeholder="Peso (kg)" keyboardType="numeric" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200" value={form.weight} onChangeText={(t) => setForm({...form, weight: t})} />
+          <View style={{ width: 8 }} />
           <TextInput placeholder="Color" className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-200" value={form.color} onChangeText={(t) => setForm({...form, color: t})} />
         </View>
 

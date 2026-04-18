@@ -27,15 +27,22 @@ export default function HomeScreen() {
     try {
       if (!refreshing) setLoading(true);
       
-      const userData = await SecureStore.getItemAsync('userData');
-      if (userData) setUser(JSON.parse(userData));
+      // 1. Obtener los datos del usuario de SecureStore
+      const userDataString = await SecureStore.getItemAsync('userData');
+      
+      if (userDataString) {
+        const parsedUser = JSON.parse(userDataString);
+        console.log("👤 Usuario cargado en estado:", parsedUser); // Verás si tiene .id o .userId
+        setUser(parsedUser);
+      }
 
+      // 2. Cargar los productos
       const response = await getProducts();
       if (response && response.data) {
         setProducts(response.data.reverse()); 
       }
     } catch (error) {
-      console.error("❌ Error en Home:", error);
+      console.error("❌ Error en loadData:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -100,7 +107,8 @@ export default function HomeScreen() {
             <Text className="text-white font-bold text-xs italic">MODIFICAR PERFIL</Text>
           </TouchableOpacity>
           
-          {user?.role === 'ADMIN' && (
+          {/* ✅ CORRECTO: Admin o Seller pueden ver el botón */}
+          {(user?.role === 'ADMIN' || user?.role === 'SELLER') && (
             <TouchableOpacity 
               onPress={() => router.push('/(main)/product-form')} 
               className="flex-1 bg-blue-600 p-3 rounded-2xl items-center"
@@ -120,8 +128,10 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         renderItem={({ item }) => {
-          const canEdit = user?.role === 'ADMIN' || user?.id === item.sellerId;
-
+          console.log(`Producto: ${item.name} | Mi ID: ${user?.id} | Dueño ID: ${item.sellerId}`);
+          const myId = user?.userId;
+          const canEdit = user?.role === 'ADMIN' || myId == item.sellerId;
+          console.log(`Producto: ${item.name} | Mi ID: ${myId} | Dueño ID: ${item.sellerId} | ¿Puedo editar?: ${canEdit}`);
           return (
             <TouchableOpacity 
               onPress={() => canEdit && router.push({
