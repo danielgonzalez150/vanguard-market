@@ -30,3 +30,11 @@ export const updateProduct = async (id: number, productData: any) => {
   const response = await api.put(`/products/${id}`, productData);
   return response.data;
 };
+export const getProductsBySeller = async (sellerId: string) => {
+  const res = await api.get(`/products/seller/${sellerId}`);
+  return res.data.data;
+};
+export const deleteProduct = async (id: number) => {
+  const res = await api.delete(`/products/${id}`);
+  return res.data;
+};
