@@ -30,3 +30,18 @@ export const updateProduct = async (id: number, productData: any) => {
   const response = await api.put(`/products/${id}`, productData);
   return response.data;
 };
+
+/**
+ * Busca productos por nombre
+ * @param name El texto que el usuario escribe en la barra
+ */
+export const searchProducts = async (name: string) => {
+  try {
+    // Usamos el query param 'name' como pide tu API
+    const response = await api.get(`/products/search?name=${name}`);
+    return response;
+  } catch (error) {
+    console.error("Error en searchProducts service:", error);
+    throw error;
+  }
+};

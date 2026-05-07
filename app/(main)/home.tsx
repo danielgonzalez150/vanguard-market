@@ -2,8 +2,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
 // 1. AÑADIMOS Image AQUÍ
-import { ActivityIndicator, Alert, FlatList, Image, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
-import { getProducts } from '../../services/productService';
+import { ActivityIndicator, Alert, FlatList, Image, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { getProducts, searchProducts } from '../../services/productService';
 // 2. ELIMINAMOS la importación errónea de react-native-reanimated
 
 interface Product {
@@ -21,6 +21,8 @@ export default function HomeScreen() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
   const loadData = async () => {
@@ -47,6 +49,30 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const handleSearch = (text: string) => {
+    setSearchText(text);
+
+    // Limpiamos el timer anterior si el usuario sigue escribiendo
+    if (typingTimeout) clearTimeout(typingTimeout);
+
+    // Esperamos 500ms después de que deje de escribir para llamar a la API
+    const timeout = setTimeout(async () => {
+      if (text.trim().length === 0) {
+        loadData();
+        return;
+      }
+
+      try {
+        const response = await searchProducts(text);
+        setProducts(response.data);
+      } catch (error) {
+        console.error("Error buscando:", error);
+      }
+    }, 500);
+
+    setTypingTimeout(timeout);
   };
 
   useFocusEffect(
@@ -97,6 +123,18 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={handleLogout} className="bg-red-50 px-3 py-1 rounded-lg">
             <Text className="text-red-500 font-bold text-xs">SALIR</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* BARRA DE BÚSQUEDA */}
+        <View className="bg-slate-100 flex-row items-center px-4 py-2 rounded-2xl mb-4 border border-slate-200">
+          <Text className="mr-2">🔍</Text>
+          <TextInput
+            placeholder="Buscar por nombre..."
+            className="flex-1 h-10 text-slate-800"
+            value={searchText}
+            onChangeText={handleSearch}
+            clearButtonMode="while-editing"
+          />
         </View>
 
         <View className="flex-row space-x-3 mb-2">
