@@ -54,10 +54,8 @@ export default function HomeScreen() {
   const handleSearch = (text: string) => {
     setSearchText(text);
 
-    // Limpiamos el timer anterior si el usuario sigue escribiendo
     if (typingTimeout) clearTimeout(typingTimeout);
 
-    // Esperamos 500ms después de que deje de escribir para llamar a la API
     const timeout = setTimeout(async () => {
       if (text.trim().length === 0) {
         loadData();
@@ -66,9 +64,19 @@ export default function HomeScreen() {
 
       try {
         const response = await searchProducts(text);
-        setProducts(response.data);
+        
+        // EXPLICACIÓN:
+        // response.data es el objeto de la API: {"data": [...], "success": true}
+        // response.data.data es el ARRAY de productos que necesitas
+        
+        if (response.data && response.data.success && Array.isArray(response.data.data)) {
+          setProducts(response.data.data); // <--- Aquí está el doble .data
+        } else {
+          setProducts([]); 
+        }
       } catch (error) {
         console.error("Error buscando:", error);
+        setProducts([]);
       }
     }, 500);
 
