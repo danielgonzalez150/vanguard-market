@@ -11,11 +11,13 @@ import {
   Text,
   TouchableOpacity,
   View,
+  TextInput,
 } from "react-native";
 
 import { useCartStore } from "../../store/cartStore";
 
 import { getProducts } from "../../services/productService";
+import Navbar from "@/components/Navbar";
 
 console.log("HOME RENDERIZANDO");
 
@@ -31,6 +33,11 @@ interface Product {
 
 export default function HomeScreen() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState("");
+
+  const filteredProducts = products.filter((item) =>
+    item.name?.toLowerCase().includes(search.toLowerCase()),
+  );
   const [user, setUser] = useState<any>(null);
 
   const [loading, setLoading] = useState(true);
@@ -58,16 +65,20 @@ export default function HomeScreen() {
       console.log("RESPUESTA PRODUCTS:", response);
 
       // SI EL BACKEND DEVUELVE ARRAY
-      if (Array.isArray(response)) {
-        setProducts([...response].reverse());
-      }
+if (Array.isArray(response)) {
+  const reversed = [...response].reverse();
 
-      // SI EL BACKEND DEVUELVE { data: [] }
-      else if (response?.data && Array.isArray(response.data)) {
-        setProducts([...response.data].reverse());
-      } else {
-        setProducts([]);
-      }
+  setProducts(reversed);
+}
+
+// SI EL BACKEND DEVUELVE { data: [] }
+else if (response?.data && Array.isArray(response.data)) {
+  const reversed = [...response.data].reverse();
+
+  setProducts(reversed);
+} else {
+  setProducts([]);
+}
     } catch (error) {
       console.error("❌ Error en loadData:", error);
     } finally {
@@ -89,6 +100,8 @@ export default function HomeScreen() {
 
     loadData();
   };
+
+ 
 
   // LOGOUT
   const handleLogout = async () => {
@@ -123,79 +136,19 @@ export default function HomeScreen() {
 
   return (
     <View className="flex-1 bg-slate-50">
-      {/* HEADER */}
-      <View className="p-4 pt-6 bg-white border-b border-slate-100">
-        <View className="flex-row justify-between items-center mb-4">
-          <View>
-            <Text className="text-2xl font-black text-slate-900">Vanguard</Text>
-
-            <Text className="text-blue-600 text-xs font-bold uppercase">
-              Panel {user?.role || "Usuario"}
-            </Text>
-          </View>
-
-          {/* LOGOUT */}
-          <TouchableOpacity
-            onPress={handleLogout}
-            className="bg-red-50 px-3 py-1 rounded-lg"
-          >
-            <Text className="text-red-500 font-bold text-xs">SALIR</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* BOTONES */}
-        <View className="flex-row space-x-3">
-          {/* CARRITO */}
-          <TouchableOpacity
-            onPress={() => router.push("/(main)/cart")}
-            className="bg-green-600 p-3 rounded-2xl mb-4 items-center"
-          >
-            <Text className="text-white font-bold">VER CARRITO</Text>
-          </TouchableOpacity>
-
-          {/* PERFIL */}
-          <TouchableOpacity
-            onPress={() => router.push("/(main)/profile")}
-            className="flex-1 bg-slate-900 p-3 rounded-2xl items-center"
-          >
-            <Text className="text-white font-bold text-xs">
-              MODIFICAR PERFIL
-            </Text>
-          </TouchableOpacity>
-
-          {/* NUEVO PRODUCTO */}
-          {(user?.role === "ADMIN" || user?.role === "SELLER") && (
-            <TouchableOpacity
-              onPress={() => router.push("/(main)/product-form")}
-              className="flex-1 bg-blue-600 p-3 rounded-2xl items-center"
-            >
-              <Text className="text-white font-bold text-xs">
-                NUEVO PRODUCTO
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+      <Navbar />
+      <View className="px-4 mt-4">
+        <TextInput
+          placeholder="Buscar productos..."
+          value={search}
+          onChangeText={setSearch}
+          className="bg-white p-4 rounded-2xl border border-slate-200"
+        />
       </View>
-
-      {/* PANEL SELLER */}
-      {(user?.role === "ADMIN" || user?.role === "SELLER") && (
-        <TouchableOpacity
-          onPress={() => {
-            console.log("CLICK SELLER");
-
-            router.push("/(main)/seller");
-          }}
-          className="bg-purple-600 p-4 rounded-xl m-4"
-        >
-          <Text className="text-white text-center font-bold">
-            Panel Vendedor
-          </Text>
-        </TouchableOpacity>
-      )}
 
       {/* PRODUCTOS */}
       <FlatList
-        data={products}
+        data={filteredProducts}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={{
           padding: 16,
@@ -215,7 +168,6 @@ export default function HomeScreen() {
                 canEdit &&
                 router.push({
                   pathname: "/(main)/product-form",
-
                   params: {
                     id: item.id,
                   },

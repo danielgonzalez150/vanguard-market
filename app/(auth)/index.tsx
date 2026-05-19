@@ -34,7 +34,7 @@ export default function LoginScreen() {
         console.log("✅ LOGIN EXITOSO. Rol:", apiData.role);
 
         // 5. Saltamos al Home
-        router.replace('/(main)/home'); 
+        router.replace('/(taps)/home'); 
       } else {
         Alert.alert("Error", "No se encontró el token en la respuesta");
       }

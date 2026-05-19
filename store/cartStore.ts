@@ -62,7 +62,6 @@ export const useCartStore = create<CartStore>((set, get) => ({
         cart: [...get().cart, { ...product, quantity: 1 }],
       });
 
-      Alert.alert("Carrito", "Producto agregado al carrito");
     }
   },
 
